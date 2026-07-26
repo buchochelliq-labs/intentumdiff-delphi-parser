@@ -1,0 +1,20 @@
+[package]
+name = "tree-sitter-pascal"
+version = "0.10.2"
+edition = "2018"
+license = "MIT"
+# Patched for IntentDiff:
+# - compile parser.c for native tests
+# - link the precompiled wasm32-wasip2 static library for wasm builds
+build = "build.rs"
+links = "tree_sitter_pascal"
+
+[lib]
+name = "tree_sitter_pascal"
+path = "bindings/rust/lib.rs"
+
+[dependencies]
+tree-sitter-language = "0.1"
+
+[build-dependencies]
+cc = "1"
