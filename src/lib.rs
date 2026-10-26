@@ -238,10 +238,15 @@ fn label_for_ts(node: tree_sitter::Node<'_>, source: &[u8]) -> String {
                 return parts.join(".");
             }
         }
-        "declProc" | "declArg" => {
+        "declProc" => {
             if let Some(name) = node.child_by_field_name("name") {
                 return txt(name);
             }
+        }
+        "declArg" => {
+            // Parameter modifiers and types are semantically significant in Pascal.
+            // Keep the declaration span rather than collapsing the argument to its name.
+            return txt(node).trim().to_string();
         }
         "assignment" => {
             if let Some(lhs) = node.child_by_field_name("lhs") {
@@ -450,6 +455,26 @@ mod tests {
     fn process_impl_whitespace_returns_valid_json() {
         let out = process_impl("   \n  ");
         t::assert_valid_json(&out, "process(whitespace)");
+    }
+
+    #[test]
+    fn const_parameter_modifier_changes_semantic_tree() {
+        let before = "program Demo;\nfunction Add(A, B: Integer): Integer;\nbegin\n  Result := A + B;\nend;\nbegin end.\n";
+        let after = "program Demo;\nfunction Add(const A, B: Integer): Integer;\nbegin\n  Result := A + B;\nend;\nbegin end.\n";
+
+        let before_tree = process_impl(before);
+        let after_tree = process_impl(after);
+
+        t::assert_valid_json(&before_tree, "before const parameter");
+        t::assert_valid_json(&after_tree, "after const parameter");
+        assert_ne!(
+            before_tree, after_tree,
+            "adding const to a parameter must alter the semantic tree"
+        );
+        assert!(
+            after_tree.contains("const A, B: Integer"),
+            "parameter declaration evidence must retain const/type text: {after_tree}"
+        );
     }
 
     #[test]
